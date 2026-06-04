@@ -1,3 +1,169 @@
--- SELECT COUNT(*) FROM flights;
-SELECT COUNT(*) FROM airlines;
--- SELECT COUNT(*) FROM airports;
+-- -- Overall KPIs
+-- SELECT 
+--     COUNT(*) AS total_flights,
+--     ROUND(100.0 * SUM(CASE WHEN "CANCELLED" = 1 THEN 1 ELSE 0 END) / COUNT(*), 2) AS cancellation_rate_pct,
+--     ROUND(AVG("ARRIVAL_DELAY")::numeric, 2) AS avg_arrival_delay_min,
+--     ROUND(AVG("DEPARTURE_DELAY")::numeric, 2) AS avg_departure_delay_min,
+--     ROUND(100.0 * SUM(CASE WHEN "ARRIVAL_DELAY" <= 15 THEN 1 ELSE 0 END) / COUNT(*), 2) AS otp_rate_pct
+-- FROM flight_analysis;
+
+-- -- By Airline
+-- SELECT 
+--     airline_name,
+--     COUNT(*) AS total_flights,
+--     ROUND(100.0 * SUM(CASE WHEN "CANCELLED" = 1 THEN 1 ELSE 0 END) / COUNT(*), 2) AS cancellation_rate_pct,
+--     ROUND(AVG("ARRIVAL_DELAY")::numeric, 2) AS avg_arrival_delay_min,
+--     ROUND(100.0 * SUM(CASE WHEN "ARRIVAL_DELAY" <= 15 THEN 1 ELSE 0 END) / COUNT(*), 2) AS otp_rate_pct
+-- FROM flight_analysis
+-- GROUP BY airline_name
+-- ORDER BY otp_rate_pct DESC;
+
+-- -- By Month
+-- SELECT 
+--     "MONTH" AS month,
+--     COUNT(*) AS total_flights,
+--     ROUND(100.0 * SUM(CASE WHEN "CANCELLED" = 1 THEN 1 ELSE 0 END) / COUNT(*), 2) AS cancellation_rate_pct,
+--     ROUND(AVG("ARRIVAL_DELAY")::numeric, 2) AS avg_arrival_delay_min
+-- FROM flight_analysis
+-- GROUP BY "MONTH"
+-- ORDER BY "MONTH";
+
+-- -- By Day of Week
+-- SELECT 
+--     "DAY_OF_WEEK" AS day_of_week,
+--     COUNT(*) AS total_flights,
+--     ROUND(100.0 * SUM(CASE WHEN "CANCELLED" = 1 THEN 1 ELSE 0 END) / COUNT(*), 2) AS cancellation_rate_pct,
+--     ROUND(AVG("ARRIVAL_DELAY")::numeric, 2) AS avg_arrival_delay_min
+-- FROM flight_analysis
+-- GROUP BY "DAY_OF_WEEK"
+-- ORDER BY "DAY_OF_WEEK";
+
+-- -- Top 10 Origin Airports
+-- SELECT 
+--     origin_airport_name,
+--     origin_city,
+--     origin_state,
+--     COUNT(*) AS total_flights,
+--     ROUND(AVG("ARRIVAL_DELAY")::numeric, 2) AS avg_arrival_delay_min
+-- FROM flight_analysis
+-- GROUP BY origin_airport_name, origin_city, origin_state
+-- ORDER BY total_flights DESC
+-- LIMIT 10;
+
+-- -- 1. Cancellation Reason Breakdown
+-- SELECT 
+--     "CANCELLATION_REASON_DESC",
+--     COUNT(*) AS total_cancelled,
+--     ROUND(100.0 * COUNT(*) / (SELECT COUNT(*) FROM flight_analysis WHERE "CANCELLED" = 1), 2) AS pct_of_cancellations
+-- FROM flight_analysis
+-- WHERE "CANCELLED" = 1
+-- GROUP BY "CANCELLATION_REASON_DESC"
+-- ORDER BY total_cancelled DESC;
+
+-- -- 2. Delay Type Contribution (total minutes)
+-- SELECT 'Airline Delay' AS delay_type, SUM("AIRLINE_DELAY") AS total_minutes FROM flight_analysis
+-- UNION ALL SELECT 'Weather Delay', SUM("WEATHER_DELAY") FROM flight_analysis
+-- UNION ALL SELECT 'NAS Delay', SUM("AIR_SYSTEM_DELAY") FROM flight_analysis
+-- UNION ALL SELECT 'Security Delay', SUM("SECURITY_DELAY") FROM flight_analysis
+-- UNION ALL SELECT 'Late Aircraft Delay', SUM("LATE_AIRCRAFT_DELAY") FROM flight_analysis
+-- ORDER BY total_minutes DESC;
+
+-- -- 3. Hourly Departure Pattern
+-- SELECT ("SCHEDULED_DEPARTURE_MINUTES" / 60) AS departure_hour,
+--     COUNT(*) AS total_flights,
+--     ROUND(AVG("ARRIVAL_DELAY")::numeric, 2) AS avg_arrival_delay,
+--     ROUND(100.0 * SUM(CASE WHEN "CANCELLED" = 1 THEN 1 ELSE 0 END) / COUNT(*), 2) AS cancellation_rate
+-- FROM flight_analysis
+-- GROUP BY ("SCHEDULED_DEPARTURE_MINUTES" / 60)
+-- ORDER BY departure_hour;
+
+-- -- 4. Top 20 Busiest Routes
+-- SELECT origin_airport_name || ' → ' || dest_airport_name AS route,
+--     COUNT(*) AS total_flights,
+--     ROUND(AVG("ARRIVAL_DELAY")::numeric, 2) AS avg_arrival_delay,
+--     ROUND(100.0 * SUM(CASE WHEN "CANCELLED" = 1 THEN 1 ELSE 0 END) / COUNT(*), 2) AS cancellation_rate
+-- FROM flight_analysis
+-- GROUP BY origin_airport_name, dest_airport_name
+-- ORDER BY total_flights DESC
+-- LIMIT 20;
+
+-- -- 5. Airport Performance with Geo (for map)
+-- SELECT origin_airport_name, origin_city, origin_state,
+--     COUNT(*) AS total_flights,
+--     ROUND(AVG("ARRIVAL_DELAY")::numeric, 2) AS avg_arrival_delay,
+--     ROUND(100.0 * SUM(CASE WHEN "CANCELLED" = 1 THEN 1 ELSE 0 END) / COUNT(*), 2) AS cancellation_rate
+-- FROM flight_analysis
+-- GROUP BY origin_airport_name, origin_city, origin_state
+-- ORDER BY total_flights DESC
+-- LIMIT 50;
+
+-- -- 6. Diversion Rate by Airline
+-- SELECT 
+--     airline_name,
+--     COUNT(*) AS total_flights,
+--     SUM(CASE WHEN "DIVERTED" = 1 THEN 1 ELSE 0 END) AS diverted_flights,
+--     ROUND(100.0 * SUM(CASE WHEN "DIVERTED" = 1 THEN 1 ELSE 0 END) / COUNT(*), 2) AS diversion_rate_pct
+-- FROM flight_analysis
+-- GROUP BY airline_name
+-- ORDER BY diversion_rate_pct DESC;
+
+-- -- 7. Time of Day Bins (OTP)
+-- SELECT 
+--     CASE 
+--         WHEN ("SCHEDULED_DEPARTURE_MINUTES" / 60) BETWEEN 0 AND 5 THEN 'Night (00-05)'
+--         WHEN ("SCHEDULED_DEPARTURE_MINUTES" / 60) BETWEEN 6 AND 11 THEN 'Morning (06-11)'
+--         WHEN ("SCHEDULED_DEPARTURE_MINUTES" / 60) BETWEEN 12 AND 17 THEN 'Afternoon (12-17)'
+--         ELSE 'Evening (18-23)'
+--     END AS time_bin,
+--     COUNT(*) AS total_flights,
+--     ROUND(100.0 * SUM(CASE WHEN "ARRIVAL_DELAY" <= 15 THEN 1 ELSE 0 END) / COUNT(*), 2) AS otp_rate
+-- FROM flight_analysis
+-- GROUP BY 
+--     CASE 
+--         WHEN ("SCHEDULED_DEPARTURE_MINUTES" / 60) BETWEEN 0 AND 5 THEN 'Night (00-05)'
+--         WHEN ("SCHEDULED_DEPARTURE_MINUTES" / 60) BETWEEN 6 AND 11 THEN 'Morning (06-11)'
+--         WHEN ("SCHEDULED_DEPARTURE_MINUTES" / 60) BETWEEN 12 AND 17 THEN 'Afternoon (12-17)'
+--         ELSE 'Evening (18-23)'
+--     END
+-- ORDER BY time_bin;
+
+-- -- 8. State Level Performance (Origin)
+-- SELECT origin_state,
+--     COUNT(*) AS total_flights,
+--     ROUND(AVG("ARRIVAL_DELAY")::numeric, 2) AS avg_arrival_delay,
+--     ROUND(100.0 * SUM(CASE WHEN "CANCELLED" = 1 THEN 1 ELSE 0 END) / COUNT(*), 2) AS cancellation_rate
+-- FROM flight_analysis
+-- GROUP BY origin_state
+-- ORDER BY total_flights DESC;
+
+-- -- 9. Worst Delay Routes (min 100 flights)
+-- SELECT origin_airport_name || ' → ' || dest_airport_name AS route,
+--     COUNT(*) AS total_flights,
+--     ROUND(AVG("ARRIVAL_DELAY")::numeric, 2) AS avg_arrival_delay
+-- FROM flight_analysis
+-- GROUP BY origin_airport_name, dest_airport_name
+-- HAVING COUNT(*) >= 100
+-- ORDER BY avg_arrival_delay DESC
+-- LIMIT 15;
+
+-- -- 10. Monthly + Cancellation Trend
+-- SELECT "MONTH",
+--     COUNT(*) AS total_flights,
+--     ROUND(AVG("ARRIVAL_DELAY")::numeric, 2) AS avg_arrival_delay,
+--     ROUND(100.0 * SUM(CASE WHEN "CANCELLED" = 1 THEN 1 ELSE 0 END) / COUNT(*), 2) AS cancellation_rate
+-- FROM flight_analysis
+-- GROUP BY "MONTH"
+-- ORDER BY "MONTH";
+
+-- Airport Performance
+-- SELECT 
+--     origin_airport_name,
+--     origin_city,
+--     origin_state,
+--     COUNT(*) AS total_flights,
+--     ROUND(AVG("ARRIVAL_DELAY")::numeric, 2) AS avg_arrival_delay,
+--     ROUND(100.0 * SUM(CASE WHEN "CANCELLED" = 1 THEN 1 ELSE 0 END) / COUNT(*), 2) AS cancellation_rate
+-- FROM flight_analysis
+-- GROUP BY origin_airport_name, origin_city, origin_state
+-- ORDER BY total_flights DESC
+-- LIMIT 100;
